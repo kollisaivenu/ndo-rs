@@ -30,8 +30,13 @@ impl Graph {
     }
 
     /// Insert an edge with two vertices on either ends.
-    pub fn insert(&mut self, vertex1: usize, vertex2: usize, edge_weight: i64) {
+    pub fn insert(&mut self, vertex1: usize, vertex2: usize, edge_weight: f64) {
         self.graph_csr.insert(vertex1, vertex2, edge_weight);
+    }
+
+    /// Get edge weight for a pair of vertices.
+    pub fn get_edge_weight(&self, vertex1: usize, vertex2: usize) -> Option<f64> {
+        self.graph_csr.get(vertex1, vertex2).cloned()
     }
 
     /// Clone the graph

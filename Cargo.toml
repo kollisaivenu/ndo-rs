@@ -7,3 +7,5 @@ edition = "2024"
 rand = { version = "0.8", features = ["small_rng", "std_rng"] }
 rustc-hash = "2.1.1"
 sprs = "0.11"
+itertools = "0.14.0"
+approx = "0.5"

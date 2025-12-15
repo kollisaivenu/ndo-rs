@@ -1,6 +1,6 @@
 use rustc_hash::FxHashSet;
 use crate::graph::Graph;
-use crate::imbalance::compute_parts_load;
+use crate::imbalance::{calculate_imbalance, compute_parts_load};
 
 #[derive(Debug)]
 struct Move {
@@ -52,6 +52,7 @@ pub(crate) fn jet_vertex_separator_refiner(
             lock_vertices(&moves, &mut locked_vertices);
 
         } else {
+            // the jetrs is run balance out the two partitions.
             moves = jetrw(&adjacency,
                              &partition_iter,
                              vertex_weights,
@@ -92,8 +93,7 @@ pub(crate) fn jet_vertex_separator_refiner(
 }
 
 fn jetlp(graph: &Graph, partition: &[usize], locked_vertices: &[bool], filter_ratio: f64, vertex_weights: &[i64]) -> Vec<Move> {
-    // iterate over all the vertices to find out which vertices provides the best gain (decrease in vertex separator weight)
-
+    // Iterate over all the vertices to find out which vertices in vertex separator partition provides the best gain (decrease in vertex separator weight)
     let (dest_partition, gain) = calculate_gain(graph, partition, locked_vertices, vertex_weights);
 
     // First filter is applied to check which of the vertices are eligible for moving from one partition
@@ -108,19 +108,19 @@ fn jetlp(graph: &Graph, partition: &[usize], locked_vertices: &[bool], filter_ra
 
     // A heuristic attempt is made to approximate the true gain that would occur since
     // two positive moves when applied simultaneously can be detrimental.
-    calculate_approximate_gain_and_get_positive_moves(graph, first_filter_eligible_moves, partition, vertex_weights, &dest_partition, &gain)
+    calculate_approximate_gain_and_get_positive_gain_moves(graph, first_filter_eligible_moves, partition, vertex_weights, &dest_partition, &gain)
 }
 
 fn calculate_gain(graph: &Graph, partition: &[usize], locked_vertices: &[bool], vertex_weights: &[i64]) -> (Vec<usize>, Vec<Option<i64>>){
+    // This function calculates the gain for the vertices in the vertex separator.
     let mut dest_partition = vec![0; graph.len()];
     let mut gain = vec![None; graph.len()];
     for vertex in 0..graph.len() {
-        // These are values if all the vertex belongs to the same partition as its neighbours (not a boundary vertex).
-
+        // Consider only vertices present in the vertex separator partition
         if !locked_vertices[vertex]  && partition[vertex] == 2 {
             let mut best_partition = 0;
             let mut gain_of_vertex = i64::MIN;
-
+            // Check which partition is it best for them to move to (partition 0 or partition 1).
             for possible_dest in 0..2 {
                 let other_dest = 1 - possible_dest;
                 let mut strength = 0i64;
@@ -136,7 +136,7 @@ fn calculate_gain(graph: &Graph, partition: &[usize], locked_vertices: &[bool], 
                 }
 
             }
-
+            // Assign the best destination partition and the gain associated with the move.
             dest_partition[vertex] = best_partition;
             gain[vertex] = Some(gain_of_vertex);
         }
@@ -145,8 +145,8 @@ fn calculate_gain(graph: &Graph, partition: &[usize], locked_vertices: &[bool], 
     (dest_partition, gain)
 }
 
-fn calculate_approximate_gain_and_get_positive_moves(graph: &Graph, first_filter_eligible_moves: Vec<usize>, partition: &[usize], vertex_weights: &[i64], dest_partition: &[usize], gain: &[Option<i64>]) -> (Vec<Move>) {
-    // A hashset is created as it is faster to check which vertex is eligible to move.
+fn calculate_approximate_gain_and_get_positive_gain_moves(graph: &Graph, first_filter_eligible_moves: Vec<usize>, partition: &[usize], vertex_weights: &[i64], dest_partition: &[usize], gain: &[Option<i64>]) -> (Vec<Move>) {
+    // A hashset is created as it is faster to check if vertex passed the first filter or not.
     let first_filter_eligible_vertices: FxHashSet<usize> = first_filter_eligible_moves.clone().into_iter().collect();
 
     // A heuristic attempt is made to approximate the true gain that would occur since
@@ -155,14 +155,13 @@ fn calculate_approximate_gain_and_get_positive_moves(graph: &Graph, first_filter
 
     for vertex_index in 0..first_filter_eligible_moves.len() {
         let vertex = first_filter_eligible_moves[vertex_index];
-
         let mut gain_for_vertex = vertex_weights[vertex];
 
         for (neighbor_vertex, _) in graph.neighbors(vertex) {
             let dest_partition_of_vertex = dest_partition[vertex];
             let other_dest = 1 - dest_partition_of_vertex;
 
-            if is_higher_placed(neighbor_vertex, vertex, &gain, &first_filter_eligible_vertices) {
+            if is_more_important(neighbor_vertex, vertex, &gain, &first_filter_eligible_vertices) {
                 // This is the scenario where a vertex 'x' is moving to partition '0' but one of its
                 // neighbor 'y' is moving to partition '1'. This neighbor 'y' can adversely impact
                 // the gain of the vertex 'x' as it might have to move vertices into the vertex separator.
@@ -210,7 +209,7 @@ fn gain_conn_ratio_filter(locked_vertices: &[bool], partitions: &[usize], gain: 
     list_of_moveable_vertices
 }
 
-fn is_higher_placed(vertex1: usize, vertex2: usize, gain: &[Option<i64>], list_of_vertices: &FxHashSet<usize>) -> bool {
+fn is_more_important(vertex1: usize, vertex2: usize, gain: &[Option<i64>], list_of_vertices: &FxHashSet<usize>) -> bool {
     // Checks if vertex1 is better ranked than vertex2 (used in the vertex afterburner). Better ranked
     // indicates that it has a higher gain than vertex2 (and hence should be given more preference)
 
@@ -227,24 +226,24 @@ fn is_higher_placed(vertex1: usize, vertex2: usize, gain: &[Option<i64>], list_o
 }
 
 fn jetrw(graph: &Graph, partition: &[usize], vertex_weights: &[i64], balance_factor: f64, partition_weights: &[i64]) -> Vec<Move> {
-    // Weaker but better rebalancer in terms of the change in edgecut
+    // This function rebalances the two partitions
     let max_slots = 25;
-
+    // Determine which is the heavier partition
     let heavy_partition= get_heavy_partition(partition_weights);
-
+    // Calculate the loss for vertices in the vertex separator partition
     let loss = calculate_loss(graph, partition, heavy_partition, vertex_weights);
 
     // Slot the loss values into different buckets. This is to prevent sorting the loss values
     // which can be expensive.
     let bucket = place_vertices_in_bucket(graph.len(), partition, &loss, max_slots);
 
-    // For each of the heavy partitions, decide the vertices that can be moved from the
-    // heavy partitions such that the increase in edge cut is minimized.
-    let moves = calculate_moves_to_rebalance(partition_weights, heavy_partition, max_slots, &bucket, &loss, vertex_weights, balance_factor);
-    moves
+    // Determine which vertices to move from the vertex separator to the light partition so that the heavy partition becomes lighter.
+    determine_moves_to_rebalance(partition_weights, heavy_partition, max_slots, &bucket, &loss, vertex_weights, balance_factor)
 }
 
 fn calculate_loss(graph: &Graph, partition: &[usize], heavy_partition: usize, vertex_weights: &[i64]) -> Vec<Option<i64>> {
+    // This function calculates the loss of the vertices in the vertex separator. Each vertex is
+    // only allowed to move to the lighter partition.
     let (loss): (Vec<Option<i64>>) = (0..graph.len()).map(|vertex| {
         let mut calculated_loss_for_vertex = None;
 
@@ -264,6 +263,7 @@ fn calculate_loss(graph: &Graph, partition: &[usize], heavy_partition: usize, ve
 }
 
 fn place_vertices_in_bucket(num_of_vertices: usize, partition: &[usize], loss: &[Option<i64>], max_slots: usize) -> Vec<Vec<usize>> {
+    // This function buckets the vertices based on the loss value.
     let mut bucket = init_bucket(1,  max_slots);
 
     for vertex in 0..num_of_vertices{
@@ -278,6 +278,7 @@ fn place_vertices_in_bucket(num_of_vertices: usize, partition: &[usize], loss: &
 }
 
 fn get_heavy_partition(partition_weights: &[i64]) -> usize {
+    // This function determines which of the two partitions is the heavier one.
     let heavy_partition:usize;
 
     if partition_weights[0] > partition_weights[1] {
@@ -290,20 +291,26 @@ fn get_heavy_partition(partition_weights: &[i64]) -> usize {
 
 }
 
-fn calculate_moves_to_rebalance(partition_weights: &[i64], heavy_partition: usize, max_slots: usize, bucket: &Vec<Vec<usize>>, loss: &[Option<i64>], vertex_weights: &[i64], balance_factor: f64) -> Vec<Move> {
+fn determine_moves_to_rebalance(partition_weights: &[i64], heavy_partition: usize, max_slots: usize, bucket: &Vec<Vec<usize>>, loss: &[Option<i64>], vertex_weights: &[i64], balance_factor: f64) -> Vec<Move> {
+    // This function determines which vertices from the vertex separator should move to reduce the
+    // weight of the heavy partition
     let mut moves = Vec::new();
     let mut is_still_heavy_partition = true;
-    let mut m = 0f64;
-    let m_max = partition_weights[heavy_partition] as f64 - (partition_weights[0] as f64 + partition_weights[1] as f64)*balance_factor;
+    let mut current_weight = 0f64;
+    // Determine how much weight from the heavy partition should be removed.
+    let excess_weight = partition_weights[heavy_partition] as f64 - (partition_weights[0] as f64 + partition_weights[1] as f64)*balance_factor;
 
     for slot in 0..max_slots {
 
         for &vertex in &bucket[get_index_for_bucket(0, slot, max_slots)] {
-
-            if m < m_max {
-                m = m + ((loss[vertex].unwrap() + vertex_weights[vertex]) as f64);
+            // Keep removing the vertices until the excess weight (m_max
+            if current_weight < excess_weight {
+                // loss[vertex] + vertex_weights[vertex] is the amount of weight that is lost when
+                // vertex moves to the light partition
+                current_weight = current_weight + ((loss[vertex].unwrap() + vertex_weights[vertex]) as f64);
                 moves.push(Move {vertex, partition_id: 1 - heavy_partition});
             } else {
+                // This is for early stopping incase the excess weight is removed.
                 is_still_heavy_partition = false;
                 break;
             }
@@ -315,7 +322,6 @@ fn calculate_moves_to_rebalance(partition_weights: &[i64], heavy_partition: usiz
     }
 
     moves
-
 }
 
 fn calculate_slot(loss: i64, max_slot_size: usize) -> usize {
@@ -347,20 +353,6 @@ fn get_index_for_bucket(partition_index: usize, slot: usize, max_slots: usize) -
     // Gets the index of the bucket based on slot and partition index.
 
     partition_index * max_slots + slot
-}
-
-
-
-
-
-
-
-fn calculate_imbalance(partition_weights: &[i64]) -> f64 {
-    // This function calculates the imbalance of the two partitions (0 and 1).
-    let total_weight= (partition_weights[0] + partition_weights[1]) as f64;
-    let weight_of_heavy_partition = partition_weights[0].max(partition_weights[1]) as f64;
-
-    weight_of_heavy_partition/total_weight
 }
 
 fn get_weight_of_vertex_separator(partition_weights: &[i64]) -> i64 {

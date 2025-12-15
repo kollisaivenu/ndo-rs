@@ -1,3 +1,4 @@
+use sprs::TriMat;
 use crate::algorithms::minimum_degree_order::minimum_degree_ordering;
 use crate::algorithms::multilevel_vertex_separator::multilevel_vertex_separator;
 use crate::graph::Graph;

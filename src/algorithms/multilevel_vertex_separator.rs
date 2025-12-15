@@ -86,3 +86,23 @@ fn partition_uncoarse(partition: &[usize], fine_vertex_to_coarse_vertex_mapping:
 
     new_partition
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_partition_uncoarse() {
+        // Arrange
+        let fine_vertex_to_coarse_vertex_mapping = vec![0, 2, 1, 0];
+        let weights_coarse_graph = [5, 7, 6];
+        let coarse_graph_partition = [1, 0, 0];
+        let weights_uncoarse_graph = [2, 6, 7, 3];
+
+        // Act
+        let uncoarsed_graph_partition = partition_uncoarse(&coarse_graph_partition, &fine_vertex_to_coarse_vertex_mapping);
+
+        // Assert
+        assert_eq!(uncoarsed_graph_partition, vec![1, 0, 0, 1]);
+    }
+}

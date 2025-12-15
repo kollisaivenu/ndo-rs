@@ -3,7 +3,7 @@ use crate::graph::Graph;
 pub(crate) fn initial_bucket_partitioner(graph: &Graph, vertex_weights: &[i64]) -> Vec<usize>{
     // In the partition vector, each node (identified by index) is assigned 3 indicating that it is
     // not yet assigned to any partition (0 or 1).
-    let partition = vec![3, graph.len()];
+    let mut partition = vec![3, graph.len()];
     // Stores the weight of each partition
     let mut partition_weight = [0; 2];
 
