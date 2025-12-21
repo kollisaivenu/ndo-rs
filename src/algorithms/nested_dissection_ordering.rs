@@ -115,7 +115,17 @@ pub struct NestedDissectionOrdering {
     pub balance_factor: f64,
     pub jet_tolerance_factor: f64,
 }
+impl Default for NestedDissectionOrdering {
+    fn default() -> Self {
+        Self {
+            jet_iterations: 12,
+            jet_filter_ratio: 0.75,
+            balance_factor: 0.6,
+            jet_tolerance_factor: 0.999
+        }
+    }
 
+}
 impl NestedDissectionOrdering {
     pub fn compute_ordering(&self, graph: &Graph) -> Vec<usize> {
         nested_dissection_ordering(graph, &self)
