@@ -29,27 +29,19 @@ mod tests {
 
     #[test]
     fn test_compute_parts_load() {
-        // Arrange
         let partition = [0, 0, 1, 1];
         let vtx_weights = vec![4, 7, 5, 2];
         let num_parts = 2;
 
-        // Act
         let partition_weights = compute_parts_load(&partition, num_parts, &vtx_weights);
 
-        // Assert
         assert_equal(partition_weights, [11, 7]);
     }
 
     #[test]
     fn test_calculate_imbalance() {
-        // Arrange
         let partition_weights = vec![3, 3, 1];
-
-        // Act
         let imb = calculate_imbalance(&partition_weights);
-
-        // Assert
         assert_ulps_eq!(imb, 0.5);
     }
 }

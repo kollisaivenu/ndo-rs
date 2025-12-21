@@ -235,7 +235,7 @@ fn jetrw(graph: &Graph, partition: &[usize], vertex_weights: &[i64], balance_fac
 
     // Slot the loss values into different buckets. This is to prevent sorting the loss values
     // which can be expensive.
-    let bucket = place_vertices_in_bucket(graph.len(), partition, &loss, max_slots);
+    let bucket = place_vertices_in_bucket(partition, &loss, max_slots);
 
     // Determine which vertices to move from the vertex separator to the light partition so that the heavy partition becomes lighter.
     determine_moves_to_rebalance(partition_weights, heavy_partition, max_slots, &bucket, &loss, vertex_weights, balance_factor)
@@ -262,11 +262,12 @@ fn calculate_loss(graph: &Graph, partition: &[usize], heavy_partition: usize, ve
     loss
 }
 
-fn place_vertices_in_bucket(num_of_vertices: usize, partition: &[usize], loss: &[Option<i64>], max_slots: usize) -> Vec<Vec<usize>> {
+fn place_vertices_in_bucket(partition: &[usize], loss: &[Option<i64>], max_slots: usize) -> Vec<Vec<usize>> {
     // This function buckets the vertices based on the loss value.
     let mut bucket = init_bucket(1,  max_slots);
+    let num_vertices = partition.len();
 
-    for vertex in 0..num_of_vertices{
+    for vertex in 0..num_vertices{
 
         if partition[vertex] == 2 {
             let slot = calculate_slot(loss[vertex].unwrap(), max_slots);
@@ -384,6 +385,213 @@ fn apply_moves(moves: &Vec<Move>, partition: &mut [usize], graph: &Graph, partit
                 partition_weights[2] += vertex_weights[neighbor];
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::algorithms::jet_vertex_separator_refiner::{apply_moves, calculate_approximate_gain_and_get_positive_gain_moves, calculate_gain, calculate_loss, calculate_slot, determine_moves_to_rebalance, gain_conn_ratio_filter, get_heavy_partition, init_bucket, is_more_important, lock_vertices, place_vertices_in_bucket, Move};
+    use crate::graph::Graph;
+
+    #[test]
+    fn test_calculate_gain() {
+        let mut adjacency = Graph::new();
+        adjacency.insert(0, 1, 2.);
+        adjacency.insert(1, 2, 1.);
+        adjacency.insert(3, 4, 2.);
+        adjacency.insert(3, 5, 1.);
+        adjacency.insert(1, 3, 3.);
+        adjacency.insert(1, 4, 3.);
+
+        adjacency.insert(1, 0, 2.);
+        adjacency.insert(2, 1, 1.);
+        adjacency.insert(4, 3, 2.);
+        adjacency.insert(5, 3, 1.);
+        adjacency.insert(3, 1, 3.);
+        adjacency.insert(4, 1, 3.);
+
+        let partition = [0, 2, 0, 2, 1, 1];
+        let vertex_weights = [1, 3, 1, 1, 5, 2];
+        let locked_vertices = [false; 6];
+
+        let (dest_partition, gain) = calculate_gain(&adjacency, &partition, &locked_vertices, &vertex_weights);
+
+        assert_eq!(dest_partition, vec![0, 1, 0, 1, 0, 0]);
+        assert_eq!(gain, vec![None, Some(1), None, Some(1), None, None]);
+    }
+
+    #[test]
+    fn test_calculate_approximate_gain_and_get_positive_moves() {
+        let mut adjacency = Graph::new();
+        adjacency.insert(0, 3, 2.);
+        adjacency.insert(1, 4, 1.);
+        adjacency.insert(2, 4, 2.);
+        adjacency.insert(3, 5, 1.);
+        adjacency.insert(4, 6, 3.);
+        adjacency.insert(3, 4, 2.);
+
+        adjacency.insert(3, 0, 2.);
+        adjacency.insert(4, 1, 1.);
+        adjacency.insert(4, 2, 2.);
+        adjacency.insert(5, 3, 1.);
+        adjacency.insert(6, 4, 3.);
+        adjacency.insert(4, 3, 2.);
+
+        let partition = [0, 0, 0, 2, 2, 1, 1];
+        let vertex_weights = [2, 1, 1, 3, 5, 1, 4];
+        let locked_vertices = [false; 7];
+        let dest_partition = [0, 0, 0, 0, 1, 0, 0];
+        let gain = [None, None, None, Some(2), Some(3), None, None];
+        let filtered_vertices = vec![3, 4];
+
+        let moves = calculate_approximate_gain_and_get_positive_gain_moves(&adjacency, filtered_vertices.clone(), &partition, &vertex_weights, &dest_partition, &gain);
+
+        assert_eq!(moves[0].vertex, 4);
+        assert_eq!(moves[0].partition_id, 1);
+    }
+
+    #[test]
+    fn test_gain_conn_ratio_filter() {
+        let gain = vec![Some(-8), Some(-1), Some(1)];
+        let vertex_weights = vec![1, 5, 3];
+        let partition = vec![2, 2, 2];
+        let locked_vertices = [false; 3];
+        let filtered_vertices = gain_conn_ratio_filter(&locked_vertices, &partition, &gain, 0.75, &vertex_weights);
+        assert_eq!(filtered_vertices, vec![1, 2]);
+    }
+
+    #[test]
+    fn test_apply_moves() {
+        let mut adjacency = Graph::new();
+        adjacency.insert(0, 3, 2.);
+        adjacency.insert(1, 4, 1.);
+        adjacency.insert(2, 4, 2.);
+        adjacency.insert(3, 5, 1.);
+        adjacency.insert(4, 6, 3.);
+
+        adjacency.insert(3, 0, 2.);
+        adjacency.insert(4, 1, 1.);
+        adjacency.insert(4, 2, 2.);
+        adjacency.insert(5, 3, 1.);
+        adjacency.insert(6, 4, 3.);
+
+        let mut partition = [0, 0, 0, 2, 2, 1, 1];
+        let vertex_weights = [1, 1, 2, 3, 5, 1, 6];
+        let mut partition_weights = vec![4, 7, 8];
+        let moves = vec![Move {vertex: 4, partition_id: 1}];
+
+        apply_moves(&moves, &mut partition, &adjacency, &mut partition_weights, &vertex_weights);
+        assert_eq!(partition, [0, 2, 2, 2, 1, 1, 1]);
+        assert_eq!(partition_weights, [1, 12, 6]);
+    }
+
+    #[test]
+    fn test_calculate_slot() {
+        let slot1 = calculate_slot(-4, 3);
+        let slot2 = calculate_slot(0, 3);
+        let slot3 = calculate_slot(6, 8);
+        let slot4 = calculate_slot(10, 3);
+
+        assert_eq!(slot1, 0);
+        assert_eq!(slot2, 1);
+        assert_eq!(slot3, 4);
+        assert_eq!(slot4, 2);
+    }
+
+    #[test]
+    fn test_is_more_important(){
+        let gain = [Some(4), Some(2), Some(2), Some(1)];
+        let list_of_vertices = [0, 1, 2].into_iter().collect();
+        let result1 = is_more_important(0, 2, &gain, &list_of_vertices);
+        assert_eq!(result1, true);
+
+        let result2 = is_more_important(1, 2, &gain, &list_of_vertices);
+        assert_eq!(result2, true);
+
+        let result3 = is_more_important(3, 2, &gain, &list_of_vertices);
+        assert_eq!(result3, false);
+    }
+
+    #[test]
+    fn test_calculate_loss() {
+        let mut adjacency = Graph::new();
+        adjacency.insert(0, 1, 2.);
+        adjacency.insert(1, 2, 1.);
+        adjacency.insert(3, 4, 2.);
+        adjacency.insert(3, 5, 1.);
+        adjacency.insert(1, 3, 3.);
+        adjacency.insert(1, 4, 3.);
+
+        adjacency.insert(1, 0, 2.);
+        adjacency.insert(2, 1, 1.);
+        adjacency.insert(4, 3, 2.);
+        adjacency.insert(5, 3, 1.);
+        adjacency.insert(3, 1, 3.);
+        adjacency.insert(4, 1, 3.);
+
+        let partition = [0, 2, 0, 2, 1, 1];
+        let vertex_weights = [1, 3, 1, 1, 5, 2];
+        let locked_vertices = [false; 6];
+        let loss = calculate_loss(&adjacency, &partition, 1, &vertex_weights);
+
+        assert_eq!(loss, vec![None, Some(2), None, Some(6), None, None]);
+
+    }
+
+    #[test]
+    fn test_get_heavy_partition() {
+        let partition_weight = [20, 15, 5];
+        let heavy_partition = get_heavy_partition(&partition_weight);
+        assert_eq!(heavy_partition, 0);
+    }
+
+    #[test]
+    fn test_determine_moves_to_rebalance() {
+        let mut adjacency = Graph::new();
+        adjacency.insert(0, 1, 2.);
+        adjacency.insert(0, 2, 1.);
+        adjacency.insert(0, 3, 2.);
+        adjacency.insert(1, 4, 1.);
+
+        adjacency.insert(1, 0, 2.);
+        adjacency.insert(2, 0, 1.);
+        adjacency.insert(3, 0, 2.);
+        adjacency.insert(4, 1, 1.);
+
+        let partition = vec![2, 2, 0, 1, 0];
+        let vertex_weights = vec![1, 2, 3, 3, 3];
+        let partition_weights = vec![6, 3, 3];
+        let loss = calculate_loss(&adjacency, &partition, 0, &vertex_weights);
+
+        assert_eq!(loss, vec![Some(2), Some(1), None, None, None]);
+
+        let bucket = place_vertices_in_bucket(&partition, &loss, 25);
+
+        assert_eq!(bucket[2], [1]);
+        assert_eq!(bucket[3], [0]);
+
+        let moves = determine_moves_to_rebalance(&partition_weights, 0, 25, &bucket, &loss, &vertex_weights, 0.5);
+
+        assert_eq!(moves.len(), 1);
+        assert_eq!(moves[0].vertex, 1);
+        assert_eq!(moves[0].partition_id, 1);
+    }
+
+    #[test]
+    fn test_place_vertices_in_bucket() {
+        let partition = vec![0, 0, 2, 2, 1, 1];
+        let loss = vec![None, None, Some(-1), Some(2), None, None];
+        let bucket = place_vertices_in_bucket(&partition, &loss, 25);
+        assert_eq!(bucket[0], vec![2]);
+        assert_eq!(bucket[3], vec![3]);
+    }
+
+    #[test]
+    fn test_lock_vertices() {
+        let moves = vec![Move {vertex: 4, partition_id: 1}, Move {vertex: 1, partition_id: 1}];
+        let mut locked_vertices = vec![false; 5];
+        lock_vertices(&moves, &mut locked_vertices);
+        assert_eq!(locked_vertices, vec![false, true, false, false, true]);
     }
 }
 
