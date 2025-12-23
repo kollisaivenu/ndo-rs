@@ -34,7 +34,7 @@ pub(crate) fn minimum_degree_ordering(mut graph: Graph) -> Vec<usize> {
         // to each other, i.e new edges are added.
         for &node in neighbors_of_vertex_minimum_degree.iter() {
             for &another_node in neighbors_of_vertex_minimum_degree.iter() {
-                if node != another_node {
+                if !visited[node] && !visited[another_node] && node != another_node {
                     trimat_graph.add_triplet(node, another_node, 1f64);
                 }
             }
@@ -44,7 +44,7 @@ pub(crate) fn minimum_degree_ordering(mut graph: Graph) -> Vec<usize> {
         for node in 0..nrows {
             if node != node_with_minimum_vertex.unwrap() {
                 for (neighbor, _) in graph.neighbors(node) {
-                    if neighbor != node_with_minimum_vertex.unwrap() {
+                    if !visited[neighbor] {
                         trimat_graph.add_triplet(node, neighbor, 1f64);
                     }
                 }
