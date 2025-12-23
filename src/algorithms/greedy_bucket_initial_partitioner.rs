@@ -26,7 +26,7 @@ pub(crate) fn initial_bucket_partitioner(graph: &Graph, vertex_weights: &[i64]) 
         // Also ensure that any neighbouring vertex which belongs to the other partition needs
         // to now be a part of the separator vertex (denoted by partition 2)
         for (neighbor,_) in graph.neighbors(node) {
-            if partition[neighbor] != 3 || partition[neighbor] == 1 - partition[node] {
+            if partition[neighbor] <= 1 && partition[neighbor] == 1 - partition[node] {
                 partition[neighbor] = 2;
             }
         }
