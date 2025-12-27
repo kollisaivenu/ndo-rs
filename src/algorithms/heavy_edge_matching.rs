@@ -1,12 +1,13 @@
 use rand::prelude::SliceRandom;
 use rand::rngs::SmallRng;
+use rand::thread_rng;
 use rustc_hash::FxHashMap;
 use sprs::TriMat;
 use crate::graph::Graph;
 
 pub(crate) fn heavy_edge_matching_coarse(graph: &Graph, rng: &mut SmallRng, weights: &[i64]) -> (Graph, Vec<usize>, Vec<i64>) {
 
-    let mut matched_nodes = vec![0; graph.len()];
+    let mut matched_vertices = vec![false; graph.len()];
     let mut fine_vertex_to_coarse_vertex =  vec![0; graph.len()];
 
     let mut vertices: Vec<usize> = (0..graph.len()).collect();
@@ -17,17 +18,17 @@ pub(crate) fn heavy_edge_matching_coarse(graph: &Graph, rng: &mut SmallRng, weig
     // Iterate over the vertices of the graph.
     for vertex in vertices{
         // If already matched, then ignore
-        if matched_nodes[vertex] == 1 {
+        if matched_vertices[vertex] {
             continue;
         }
         // For each vertice, finds its most connected vertice, i.e the vertice that
         // is connected with the greatest edge weight
-        let mut heaviest_edge_weight = 0.;
+        let mut heaviest_edge_weight = f64::NEG_INFINITY;
         let mut heaviest_edge_connected_vertice = None;
 
         for (neighbor_vertex, edge_weight) in graph.neighbors(vertex){
             // Ensure the most connected vertice is not already matched.
-            if edge_weight > heaviest_edge_weight && !(matched_nodes[neighbor_vertex] == 1) {
+            if edge_weight > heaviest_edge_weight && !matched_vertices[neighbor_vertex] && vertex != neighbor_vertex {
                 heaviest_edge_weight = edge_weight;
                 heaviest_edge_connected_vertice = Some(neighbor_vertex);
             }
@@ -35,8 +36,9 @@ pub(crate) fn heavy_edge_matching_coarse(graph: &Graph, rng: &mut SmallRng, weig
 
         if !heaviest_edge_connected_vertice.is_none() {
             // The original node and its most connected vertex are now considered matched.
-            matched_nodes[vertex] = 1;
-            matched_nodes[heaviest_edge_connected_vertice.unwrap()] = 1;
+
+            matched_vertices[vertex] = true;
+            matched_vertices[heaviest_edge_connected_vertice.unwrap()] = true;
 
             // Map the original vertex to its vertex in the coarse graph
             // This will come in handy during the reconstruction of the coarse graph.
@@ -44,8 +46,28 @@ pub(crate) fn heavy_edge_matching_coarse(graph: &Graph, rng: &mut SmallRng, weig
             fine_vertex_to_coarse_vertex[heaviest_edge_connected_vertice.unwrap()] = super_vertex;
             num_of_edges -= 1;
         } else {
-            matched_nodes[vertex] = 1;
-            fine_vertex_to_coarse_vertex[vertex] = super_vertex;
+            if graph.neighbors(vertex).count() == 0 {
+                let matching_vertex = get_random_unmatched_vertex(&matched_vertices);
+
+                match matching_vertex {
+                    Some(matching_vertex) => {
+                        matched_vertices[vertex] = true;
+                        matched_vertices[matching_vertex] = true;
+
+                        // Map the original vertex to its vertex in the coarse graph
+                        // This will come in handy during the reconstruction of the coarse graph.
+                        fine_vertex_to_coarse_vertex[vertex] = super_vertex;
+                        fine_vertex_to_coarse_vertex[matching_vertex] = super_vertex;
+                    }
+                    None => {
+                        matched_vertices[vertex] = true;
+                        fine_vertex_to_coarse_vertex[vertex] = super_vertex;
+                    }
+                }
+            } else {
+                matched_vertices[vertex] = true;
+                fine_vertex_to_coarse_vertex[vertex] = super_vertex;
+            }
         }
         super_vertex += 1;
     }
@@ -89,6 +111,17 @@ pub(crate) fn heavy_edge_matching_coarse(graph: &Graph, rng: &mut SmallRng, weig
     (new_coarse_graph, fine_vertex_to_coarse_vertex, weights_coarse_graph)
 }
 
+fn get_random_unmatched_vertex(matched_vertices: &Vec<bool>) -> Option<usize> {
+    let mut unmatched_vertices = Vec::new();
+
+    for vertex in 0..matched_vertices.len() {
+        if !matched_vertices[vertex]{
+            unmatched_vertices.push(vertex);
+        }
+    }
+
+    unmatched_vertices.choose(&mut thread_rng()).cloned()
+}
 #[cfg(test)]
 mod tests {
     use rand::SeedableRng;
