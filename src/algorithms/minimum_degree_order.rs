@@ -74,17 +74,17 @@ mod tests {
     #[test]
     fn test_minimum_degree_ordering() {
         let mut adjacency = Graph::new();
-        adjacency.insert(0, 1, 2.);
-        adjacency.insert(1, 2, 1.);
-        adjacency.insert(1, 3, 4.);
-        adjacency.insert(2, 3, 2.);
-        adjacency.insert(3, 4, 1.);
+        adjacency.insert(0, 1, 2);
+        adjacency.insert(1, 2, 1);
+        adjacency.insert(1, 3, 4);
+        adjacency.insert(2, 3, 2);
+        adjacency.insert(3, 4, 1);
 
-        adjacency.insert(1, 0, 2.);
-        adjacency.insert(2, 1, 1.);
-        adjacency.insert(3, 1, 4.);
-        adjacency.insert(3, 2, 2.);
-        adjacency.insert(4, 3, 1.);
+        adjacency.insert(1, 0, 2);
+        adjacency.insert(2, 1, 1);
+        adjacency.insert(3, 1, 4);
+        adjacency.insert(3, 2, 2);
+        adjacency.insert(4, 3, 1);
 
         let ordering = minimum_degree_ordering(adjacency.clone());
         assert_eq!(ordering, [0, 4, 1, 2, 3]);

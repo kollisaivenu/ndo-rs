@@ -41,19 +41,19 @@ mod test {
     #[test]
     fn test_greedy_bucket_initial_partitioner() {
         let mut adjacency = Graph::new();
-        adjacency.insert(0, 1, 2.);
-        adjacency.insert(1, 2, 1.);
-        adjacency.insert(3, 4, 2.);
-        adjacency.insert(3, 5, 1.);
-        adjacency.insert(1, 3, 3.);
-        adjacency.insert(1, 4, 3.);
+        adjacency.insert(0, 1, 2);
+        adjacency.insert(1, 2, 1);
+        adjacency.insert(3, 4, 2);
+        adjacency.insert(3, 5, 1);
+        adjacency.insert(1, 3, 3);
+        adjacency.insert(1, 4, 3);
 
-        adjacency.insert(1, 0, 2.);
-        adjacency.insert(2, 1, 1.);
-        adjacency.insert(4, 3, 2.);
-        adjacency.insert(5, 3, 1.);
-        adjacency.insert(3, 1, 3.);
-        adjacency.insert(4, 1, 3.);
+        adjacency.insert(1, 0, 2);
+        adjacency.insert(2, 1, 1);
+        adjacency.insert(4, 3, 2);
+        adjacency.insert(5, 3, 1);
+        adjacency.insert(3, 1, 3);
+        adjacency.insert(4, 1, 3);
         let vertex_weights = vec![1, 2, 3, 4, 5, 6];
 
         let partition = initial_bucket_partitioner(&adjacency, &vertex_weights);

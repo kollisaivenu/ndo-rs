@@ -13,9 +13,9 @@ pub fn read_matrix_market_as_graph(file_path: &Path) -> Result<Graph, IoError> {
         Ok(trimatrix) => {
             // Read was successful, we return it after converting
             let mut trimatrix_without_self_loops = TriMat::new((trimatrix.rows(), trimatrix.cols()));
-            for (&edge, (vertex1, vertex2)) in trimatrix.triplet_iter() {
+            for (_, (vertex1, vertex2)) in trimatrix.triplet_iter() {
                 if vertex1 != vertex2 {
-                    trimatrix_without_self_loops.add_triplet(vertex1, vertex2, edge);
+                    trimatrix_without_self_loops.add_triplet(vertex1, vertex2, 1);
                 }
             }
             let csr_matrix = trimatrix_without_self_loops.to_csr();
@@ -47,14 +47,14 @@ mod tests {
     #[test]
     fn test_read_matrix_market() -> Result<(), std::io::Error> {
         let temp_dir = tempdir()?;
-        let integer_content = "%%MatrixMarket matrix coordinate real symmetric\n%\n5 5 3\n1 1 1.0\n2 2 2.0\n5 5 5.0\n";
-        let integer_matrix_file_path = create_mock_file(temp_dir.path(), "integer_matrix.mtx", integer_content);
+        let float_content = "%%MatrixMarket matrix coordinate real symmetric\n%\n5 5 3\n1 1 1.0\n2 2 2.0\n5 5 5.0\n";
+        let float_matrix_file_path = create_mock_file(temp_dir.path(), "float_matrix.mtx", float_content);
 
-        let graph = read_matrix_market_as_graph(&Path::new(&integer_matrix_file_path)).unwrap();
+        let graph = read_matrix_market_as_graph(&Path::new(&float_matrix_file_path)).unwrap();
 
         assert_eq!(graph.graph_csr.rows(), 5);
         assert_eq!(graph.graph_csr.cols(), 5);
-        assert_eq!(graph.graph_csr.nnz(), 3);
+        assert_eq!(graph.graph_csr.nnz(), 0);
 
         Ok(())
     }

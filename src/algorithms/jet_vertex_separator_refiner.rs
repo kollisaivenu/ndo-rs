@@ -396,19 +396,19 @@ mod tests {
     #[test]
     fn test_calculate_gain() {
         let mut adjacency = Graph::new();
-        adjacency.insert(0, 1, 2.);
-        adjacency.insert(1, 2, 1.);
-        adjacency.insert(3, 4, 2.);
-        adjacency.insert(3, 5, 1.);
-        adjacency.insert(1, 3, 3.);
-        adjacency.insert(1, 4, 3.);
+        adjacency.insert(0, 1, 2);
+        adjacency.insert(1, 2, 1);
+        adjacency.insert(3, 4, 2);
+        adjacency.insert(3, 5, 1);
+        adjacency.insert(1, 3, 3);
+        adjacency.insert(1, 4, 3);
 
-        adjacency.insert(1, 0, 2.);
-        adjacency.insert(2, 1, 1.);
-        adjacency.insert(4, 3, 2.);
-        adjacency.insert(5, 3, 1.);
-        adjacency.insert(3, 1, 3.);
-        adjacency.insert(4, 1, 3.);
+        adjacency.insert(1, 0, 2);
+        adjacency.insert(2, 1, 1);
+        adjacency.insert(4, 3, 2);
+        adjacency.insert(5, 3, 1);
+        adjacency.insert(3, 1, 3);
+        adjacency.insert(4, 1, 3);
 
         let partition = [0, 2, 0, 2, 1, 1];
         let vertex_weights = [1, 3, 1, 1, 5, 2];
@@ -423,19 +423,19 @@ mod tests {
     #[test]
     fn test_calculate_approximate_gain_and_get_positive_moves() {
         let mut adjacency = Graph::new();
-        adjacency.insert(0, 3, 2.);
-        adjacency.insert(1, 4, 1.);
-        adjacency.insert(2, 4, 2.);
-        adjacency.insert(3, 5, 1.);
-        adjacency.insert(4, 6, 3.);
-        adjacency.insert(3, 4, 2.);
+        adjacency.insert(0, 3, 2);
+        adjacency.insert(1, 4, 1);
+        adjacency.insert(2, 4, 2);
+        adjacency.insert(3, 5, 1);
+        adjacency.insert(4, 6, 3);
+        adjacency.insert(3, 4, 2);
 
-        adjacency.insert(3, 0, 2.);
-        adjacency.insert(4, 1, 1.);
-        adjacency.insert(4, 2, 2.);
-        adjacency.insert(5, 3, 1.);
-        adjacency.insert(6, 4, 3.);
-        adjacency.insert(4, 3, 2.);
+        adjacency.insert(3, 0, 2);
+        adjacency.insert(4, 1, 1);
+        adjacency.insert(4, 2, 2);
+        adjacency.insert(5, 3, 1);
+        adjacency.insert(6, 4, 3);
+        adjacency.insert(4, 3, 2);
 
         let partition = [0, 0, 0, 2, 2, 1, 1];
         let vertex_weights = [2, 1, 1, 3, 5, 1, 4];
@@ -463,17 +463,17 @@ mod tests {
     #[test]
     fn test_apply_moves() {
         let mut adjacency = Graph::new();
-        adjacency.insert(0, 3, 2.);
-        adjacency.insert(1, 4, 1.);
-        adjacency.insert(2, 4, 2.);
-        adjacency.insert(3, 5, 1.);
-        adjacency.insert(4, 6, 3.);
+        adjacency.insert(0, 3, 2);
+        adjacency.insert(1, 4, 1);
+        adjacency.insert(2, 4, 2);
+        adjacency.insert(3, 5, 1);
+        adjacency.insert(4, 6, 3);
 
-        adjacency.insert(3, 0, 2.);
-        adjacency.insert(4, 1, 1.);
-        adjacency.insert(4, 2, 2.);
-        adjacency.insert(5, 3, 1.);
-        adjacency.insert(6, 4, 3.);
+        adjacency.insert(3, 0, 2);
+        adjacency.insert(4, 1, 1);
+        adjacency.insert(4, 2, 2);
+        adjacency.insert(5, 3, 1);
+        adjacency.insert(6, 4, 3);
 
         let mut partition = [0, 0, 0, 2, 2, 1, 1];
         let vertex_weights = [1, 1, 2, 3, 5, 1, 6];
@@ -515,19 +515,19 @@ mod tests {
     #[test]
     fn test_calculate_loss() {
         let mut adjacency = Graph::new();
-        adjacency.insert(0, 1, 2.);
-        adjacency.insert(1, 2, 1.);
-        adjacency.insert(3, 4, 2.);
-        adjacency.insert(3, 5, 1.);
-        adjacency.insert(1, 3, 3.);
-        adjacency.insert(1, 4, 3.);
+        adjacency.insert(0, 1, 2);
+        adjacency.insert(1, 2, 1);
+        adjacency.insert(3, 4, 2);
+        adjacency.insert(3, 5, 1);
+        adjacency.insert(1, 3, 3);
+        adjacency.insert(1, 4, 3);
 
-        adjacency.insert(1, 0, 2.);
-        adjacency.insert(2, 1, 1.);
-        adjacency.insert(4, 3, 2.);
-        adjacency.insert(5, 3, 1.);
-        adjacency.insert(3, 1, 3.);
-        adjacency.insert(4, 1, 3.);
+        adjacency.insert(1, 0, 2);
+        adjacency.insert(2, 1, 1);
+        adjacency.insert(4, 3, 2);
+        adjacency.insert(5, 3, 1);
+        adjacency.insert(3, 1, 3);
+        adjacency.insert(4, 1, 3);
 
         let partition = [0, 2, 0, 2, 1, 1];
         let vertex_weights = [1, 3, 1, 1, 5, 2];
@@ -548,15 +548,15 @@ mod tests {
     #[test]
     fn test_determine_moves_to_rebalance() {
         let mut adjacency = Graph::new();
-        adjacency.insert(0, 1, 2.);
-        adjacency.insert(0, 2, 1.);
-        adjacency.insert(0, 3, 2.);
-        adjacency.insert(1, 4, 1.);
+        adjacency.insert(0, 1, 2);
+        adjacency.insert(0, 2, 1);
+        adjacency.insert(0, 3, 2);
+        adjacency.insert(1, 4, 1);
 
-        adjacency.insert(1, 0, 2.);
-        adjacency.insert(2, 0, 1.);
-        adjacency.insert(3, 0, 2.);
-        adjacency.insert(4, 1, 1.);
+        adjacency.insert(1, 0, 2);
+        adjacency.insert(2, 0, 1);
+        adjacency.insert(3, 0, 2);
+        adjacency.insert(4, 1, 1);
 
         let partition = vec![2, 2, 0, 1, 0];
         let vertex_weights = vec![1, 2, 3, 3, 3];
