@@ -67,7 +67,7 @@ fn create_subgraph(graph: &Graph, partition: &Vec<usize>, partition_num: usize) 
     }
 
     let mut subgraph = Graph::new();
-    subgraph.graph_csr = trimat_graph.to_csr();
+    subgraph.set_matrix(trimat_graph.to_csr());
 
     // return the new subgraph and the vertex mapping
     (subgraph, new_to_old_vertex_map)

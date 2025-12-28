@@ -17,6 +17,11 @@ impl Graph {
         }
     }
 
+    /// Set a CsMat for a graph
+    pub fn set_matrix(&mut self, graph_csr: CsMat<f64>) {
+        self.graph_csr = graph_csr;
+    }
+
     /// The number of vertices in the graph.
     pub fn len(&self) -> usize {
         debug_assert_eq!(self.graph_csr.rows(), self.graph_csr.cols());

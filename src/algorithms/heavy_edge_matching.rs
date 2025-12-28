@@ -98,7 +98,7 @@ pub(crate) fn heavy_edge_matching_coarse(graph: &Graph, rng: &mut SmallRng, weig
         triplet_matrix.add_triplet(vertex1, vertex2, weight);
     }
 
-    new_coarse_graph.graph_csr = triplet_matrix.to_csr();
+    new_coarse_graph.set_matrix(triplet_matrix.to_csr());
 
     // Construction of the weights array for the coarse graph.
     let mut weights_coarse_graph = vec![0; new_coarse_graph.len()];
@@ -130,7 +130,6 @@ mod tests {
 
     #[test]
     fn test_3_node_heavy_edge_matching_coarse() {
-        // Arrange
         let mut graph = Graph::new();
         graph.insert(0, 1, 5.);
         graph.insert(0, 2, 10.);
@@ -142,25 +141,18 @@ mod tests {
 
         let weights = [3, 4, 5];
         let mut rng = SmallRng::seed_from_u64(5);
-
-        // Act
         let (coarse_graph, fine_vertex_to_coarse_vertex_mapping, weights_coarse_graph) = heavy_edge_matching_coarse(&graph, &mut rng, &weights);
 
-        // Assert
         assert_eq!(20., coarse_graph.get_edge_weight(0, 1).unwrap());
         assert_eq!(20., coarse_graph.get_edge_weight(1, 0).unwrap());
-
         assert!(coarse_graph.get_edge_weight(0, 0).is_none());
         assert!(coarse_graph.get_edge_weight(1, 1).is_none());
-
         assert_eq!(fine_vertex_to_coarse_vertex_mapping, vec![0, 1, 0]);
-
         assert_eq!(weights_coarse_graph, vec![8, 4]);
     }
 
     #[test]
     fn test_5_node_heavy_edge_matching_coarse() {
-        // Arrange
         let mut graph = Graph::new();
         graph.insert(0, 1, 3.);
         graph.insert(1, 2, 5.);
@@ -176,26 +168,18 @@ mod tests {
 
         let mut rng = SmallRng::seed_from_u64(5);
         let weights = [1, 2, 3, 4, 5];
-
-        // Act
         let (coarse_graph, fine_vertex_to_coarse_vertex_mapping, weights_coarse_graph) = heavy_edge_matching_coarse(&graph, &mut rng, &weights);
 
-        // Assert
         assert_eq!(3., coarse_graph.get_edge_weight(0, 1).unwrap());
         assert_eq!(3., coarse_graph.get_edge_weight(1, 0).unwrap());
-
         assert_eq!(6., coarse_graph.get_edge_weight(0, 2).unwrap());
         assert_eq!(6., coarse_graph.get_edge_weight(2, 0).unwrap());
-
         assert_eq!(4., coarse_graph.get_edge_weight(1, 2).unwrap());
         assert_eq!(4., coarse_graph.get_edge_weight(2, 1).unwrap());
-
         assert!(coarse_graph.get_edge_weight(0, 0).is_none());
         assert!(coarse_graph.get_edge_weight(1, 1).is_none());
         assert!(coarse_graph.get_edge_weight(2, 2).is_none());
-
         assert_eq!(fine_vertex_to_coarse_vertex_mapping, vec![0, 1, 1, 2, 0]);
-
         assert_eq!(weights_coarse_graph, vec![6, 5, 4]);
     }
 }
