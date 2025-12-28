@@ -1,57 +1,66 @@
-use sprs::TriMat;
+use rustc_hash::FxHashSet;
 use crate::graph::Graph;
 
-pub(crate) fn minimum_degree_ordering(mut graph: Graph) -> Vec<usize> {
-    let mut ordering = vec![0; graph.len()];
-    let mut current_index = 0usize;
-    let nrows = graph.len();
-    let mut current_nodes = nrows;
-    let mut visited = vec![false; nrows];
+pub(crate) fn minimum_degree_ordering(graph: Graph) -> Vec<usize> {
+    let num_of_vertices = graph.len();
 
-    while current_nodes > 0 {
-        let mut node_with_minimum_vertex = None;
-        let mut current_minimum_degree = usize::MAX;
+    // Create an adjacency list which is a vector of hashsets. This makes it faster to check if
+    // an edge exists or not.
+    let mut adjacency_list = vec![FxHashSet::default(); num_of_vertices];
+    for vertex in 0..num_of_vertices {
+        for (neighbor, _) in graph.neighbors(vertex) {
+            adjacency_list[neighbor].insert(vertex);
+        }
+    }
 
-        // Find out which vertex has the lowest degree.
+    // Calculate the degree of each vertex.
+    let mut degrees = vec![0usize; num_of_vertices];
+    for vertex in 0..num_of_vertices {
+        degrees[vertex] = adjacency_list[vertex].len();
+    }
+
+    let mut ordering = Vec::with_capacity(num_of_vertices);
+
+    // Calculate the ordering
+    let mut eliminated = vec![false; num_of_vertices];
+
+    while ordering.len() < num_of_vertices {
+        // Find out which vertex has minimum degree currently
+        let mut min_degree = usize::MAX;
+        let mut min_degree_vertex = None;
+
         for vertex in 0..graph.len() {
-            if !visited[vertex] && graph.neighbors(vertex).count() < current_minimum_degree {
-                current_minimum_degree = graph.neighbors(vertex).count();
-                node_with_minimum_vertex = Some(vertex);
+            if degrees[vertex] < min_degree && !eliminated[vertex]{
+                min_degree_vertex = Some(vertex);
+                min_degree = degrees[vertex];
             }
         }
-        // Set the lowest degree vertex is the first one to be removed.
-        ordering[current_index] = node_with_minimum_vertex.unwrap();
-        current_index += 1;
-        current_nodes -= 1;
-        visited[node_with_minimum_vertex.unwrap()] = true;
+        // The vertex with the minimum degree will be the one to be eliminated.
+        ordering.push(min_degree_vertex.unwrap());
+        // This vertex ius now eliminated
+        eliminated[min_degree_vertex.unwrap()] = true;
 
-        // Get the neighbors of the vertex with minimum degree
-        let neighbors_of_vertex_minimum_degree:Vec<usize> = graph.neighbors(node_with_minimum_vertex.unwrap()).into_iter().map(|(node, edge)| node).collect();
-        // Create a graph without including the vertex with minimum degree,
-        let mut trimat_graph = TriMat::new((nrows, nrows));
+        // Now that the vertex is removed, we need to form a clique to connect it's neighbors.
+        let neighbors: Vec<usize> = adjacency_list[min_degree_vertex.unwrap()].iter().cloned().collect();
 
-        // Once the vertex with minimum degree is removed, all its neigbors get connected
-        // to each other, i.e new edges are added.
-        for &node in neighbors_of_vertex_minimum_degree.iter() {
-            for &another_node in neighbors_of_vertex_minimum_degree.iter() {
-                if !visited[node] && !visited[another_node] && node != another_node {
-                    trimat_graph.add_triplet(node, another_node, 1f64);
+        for i in 0..neighbors.len() {
+            let neighbor1 = neighbors[i];
+            // Remove the vertex which has minimum degree.
+            adjacency_list[neighbor1].remove(&min_degree_vertex.unwrap());
+            degrees[neighbor1] -= 1;
+
+            // Iterate over the neighbors.
+            for j in (i + 1)..neighbors.len() {
+                let neighbor2 = neighbors[j];
+                // If an edge between the two neighbors doesn't exist, we add it.
+                if !adjacency_list[neighbor1].contains(&neighbor2) {
+                    adjacency_list[neighbor1].insert(neighbor2);
+                    adjacency_list[neighbor2].insert(neighbor1);
+                    degrees[neighbor1] += 1;
+                    degrees[neighbor2] += 1;
                 }
             }
         }
-
-        // The connections concerned with the other remaining vertices are added back
-        for node in 0..nrows {
-            if node != node_with_minimum_vertex.unwrap() {
-                for (neighbor, _) in graph.neighbors(node) {
-                    if !visited[neighbor] {
-                        trimat_graph.add_triplet(node, neighbor, 1f64);
-                    }
-                }
-            }
-        }
-
-        graph.graph_csr = trimat_graph.to_csr();
     }
 
     ordering
