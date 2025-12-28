@@ -6,7 +6,7 @@ use crate::graph::Graph;
 fn nested_dissection_ordering(graph: &Graph, nested_dissection_ordering_struct: &NestedDissectionOrdering) -> Vec<usize> {
     // If the graph is small, we run the minimum degree ordering algorithm to find the vertex order.
     if graph.len() <= 50 {
-        minimum_degree_ordering(graph.clone());
+        return minimum_degree_ordering(graph.clone())
     }
 
     // Else we find the vertex separator using multilevel vertex separator algorithm
