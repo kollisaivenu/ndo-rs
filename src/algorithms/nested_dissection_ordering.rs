@@ -6,7 +6,7 @@ use crate::graph::Graph;
 fn nested_dissection_ordering(graph: &Graph, nested_dissection_ordering_struct: &NestedDissectionOrdering) -> Vec<usize> {
     // If the graph is small, we run the minimum degree ordering algorithm to find the vertex order.
     if graph.len() <= 50 {
-        return minimum_degree_ordering(graph.clone());
+        minimum_degree_ordering(graph.clone());
     }
 
     // Else we find the vertex separator using multilevel vertex separator algorithm
@@ -109,6 +109,16 @@ fn combine_permutation(ordering_for_subgraph_a: &Vec<usize>, ordering_for_subgra
     ordering_for_graph
 }
 
+fn get_inverse_ordering(ordering: &Vec<usize>) -> Vec<usize> {
+    // Determine the inverse ordering
+    let mut inverse_ordering = vec![0; ordering.len()];
+    for (i, &val) in ordering.iter().enumerate() {
+        inverse_ordering[val] = i;
+    }
+
+    inverse_ordering
+}
+
 pub struct NestedDissectionOrdering {
     pub jet_iterations: u32,
     pub jet_filter_ratio: f64,
@@ -127,14 +137,16 @@ impl Default for NestedDissectionOrdering {
 
 }
 impl NestedDissectionOrdering {
-    pub fn compute_ordering(&self, graph: &Graph) -> Vec<usize> {
-        nested_dissection_ordering(graph, &self)
+    pub fn compute_ordering(&self, graph: &Graph) -> (Vec<usize>, Vec<usize>) {
+        let ordering = nested_dissection_ordering(graph, &self);
+        let inverse_ordering = get_inverse_ordering(&ordering);
+        (ordering, inverse_ordering)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::algorithms::nested_dissection_ordering::{combine_permutation, create_subgraph};
+    use crate::algorithms::nested_dissection_ordering::{combine_permutation, create_subgraph, get_inverse_ordering};
     use crate::graph::Graph;
 
     #[test]
@@ -180,5 +192,12 @@ mod tests {
         let partition = vec![0, 0, 0, 2, 1, 1, 1];
         let final_order = combine_permutation(&order_subgraph_a, &order_subgraph_b, &new_vertex_to_old_vertex_subgraph_a, &new_vertex_to_old_vertex_subgraph_b, &partition);
         assert_eq!(final_order, [1, 0, 2, 6, 5, 4, 3]);
+    }
+
+    #[test]
+    fn test_get_inverse_ordering() {
+        let ordering = vec![3, 2, 4, 1, 0];
+        let inverse_ordering = get_inverse_ordering(&ordering);
+        assert_eq!(inverse_ordering, vec![4, 3, 1, 0, 2]);
     }
 }
