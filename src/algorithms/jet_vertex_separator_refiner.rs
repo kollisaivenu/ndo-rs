@@ -30,8 +30,7 @@ pub(crate) fn jet_vertex_separator_refiner(
     let mut partition_iter = partition.to_vec();
     let mut current_iteration = 0;
     let mut locked_vertices = vec![false; adjacency.len()];
-    let num_of_partitions = 3;
-    let mut partition_weights = compute_parts_load(&partition, num_of_partitions, &vertex_weights);
+    let mut partition_weights = compute_parts_load(&partition, &vertex_weights);
     let mut imbalance_of_current_iter_partition = calculate_imbalance(&partition_weights);
     let mut imbalance_of_best_partition = imbalance_of_current_iter_partition;
     let mut best_vertex_separator_weight = get_weight_of_vertex_separator(&partition_weights);

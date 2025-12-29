@@ -1,12 +1,10 @@
 /// Calculates the total weight for each part of a given partition.
-pub fn compute_parts_load(partition: &[usize], num_parts: usize, weights: &[i64]) -> Vec<i64> {
+pub fn compute_parts_load(partition: &[usize], weights: &[i64]) -> Vec<i64> {
     // This function computes the weights of partition 0, 1 and 2 (vertex separator).
-    let mut loads = vec![0; num_parts];
+    let mut loads = vec![0; 3];
 
     for (&part, w) in partition.iter().zip(weights.into_iter()) {
-        if part < num_parts {
-            loads[part] += w;
-        }
+        loads[part] += w;
     }
 
     loads
@@ -29,13 +27,12 @@ mod tests {
 
     #[test]
     fn test_compute_parts_load() {
-        let partition = [0, 0, 1, 1];
+        let partition = [0, 0, 1, 2];
         let vtx_weights = vec![4, 7, 5, 2];
-        let num_parts = 2;
 
-        let partition_weights = compute_parts_load(&partition, num_parts, &vtx_weights);
+        let partition_weights = compute_parts_load(&partition, &vtx_weights);
 
-        assert_equal(partition_weights, [11, 7]);
+        assert_equal(partition_weights, [11, 5, 2]);
     }
 
     #[test]
