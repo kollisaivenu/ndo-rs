@@ -122,6 +122,8 @@ fn get_inverse_ordering(ordering: &Vec<usize>) -> Vec<usize> {
 pub struct NestedDissectionOrdering {
     pub jet_iterations: u32,
     pub jet_filter_ratio: f64,
+    // Balance factor of x (real number between 0.5 - 1.0) indicates the partition with higher weight
+    // cannot be more than x times the total weight of two partitions
     pub balance_factor: f64,
     pub jet_tolerance_factor: f64,
 }
