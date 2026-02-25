@@ -6,7 +6,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let file_path = "./testdata/bcsstk15.mtx";
     let graph = read_matrix_market_as_graph(Path::new(file_path))?;
     let (ordering, inverser_ordering) = NestedDissectionOrdering {..Default::default()}.compute_ordering(&graph);
-    println!("Ordering: {:?}", ordering);
-    println!("Inverse Ordering: {:?}", inverser_ordering);
+    println!("{:?}", ordering);
     Ok(())
 }

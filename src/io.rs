@@ -1,5 +1,4 @@
 use std::path::Path;
-use faer::complex::ComplexFloat;
 use sprs::io::{read_matrix_market, IoError};
 use sprs::{TriMat, TriMatI};
 use crate::graph::Graph;
