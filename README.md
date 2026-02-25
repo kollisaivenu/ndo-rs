@@ -14,3 +14,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ```
+
+### At the moment, the results look as follows
+
+| Graph        | METIS (Number of non-zero values) | ndo-rs (Number of non-zero values) |
+|--------------|-----------------------------------|------------------------------------|
+| bcsstk15.mtx | 507428                            | 604936                             |
+| bcsstk16.mtx | 739059                            | 942803                             |
+| bcsstk17.mtx | 1108942                           | 1480873                            |
+| cfd1.mtx     | 19008078                          | 29872499                           |
+| cfd2.mtx     | 36495160                          | 54408449                           |
