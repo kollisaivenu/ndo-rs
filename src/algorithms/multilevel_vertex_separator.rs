@@ -26,8 +26,8 @@ pub(crate) fn multilevel_vertex_separator(
         None => SmallRng::from_entropy()
     };
 
-    // Keep coarsening the graph until the graph has less than 100 nodes
-    while coarse_graphs.last().unwrap().len() > 50  {
+    // Keep coarsening the graph until the graph has less than 20 nodes
+    while coarse_graphs.last().unwrap().len() > 20  {
 
         let (coarse_graph, fine_vertex_to_coarse_vertex_mapping, weights_of_coarse_graph) = heavy_edge_matching_coarse(coarse_graphs.last().unwrap(), &mut rng, weights_coarse_graphs.last().unwrap());
         // Store the coarse graphs at every level
@@ -46,6 +46,7 @@ pub(crate) fn multilevel_vertex_separator(
 
     while index >= 0 {
         // Refine using jet vertex separator refiner
+
         jet_vertex_separator_refiner(
             &mut coarse_graph_partition,
             &weights_coarse_graphs[index],
@@ -55,6 +56,8 @@ pub(crate) fn multilevel_vertex_separator(
             jet_filter_ratio,
             jet_tolerance_factor,
         );
+
+        refine(&mut coarse_graph_partition, &coarse_graphs[index]);
 
         // Uncoarsen the graph till we reach the initial graph.
         if index > 0 {
@@ -70,10 +73,36 @@ pub(crate) fn multilevel_vertex_separator(
     partition.copy_from_slice(&coarse_graph_partition);
 }
 
+// This is another round of minor refinement that is done to improve the vertex separator.
+// If there is a node that is connected to neighbors that belong to the same partition, then
+// the node moves to the partition.
+fn refine(partition: &mut [usize], graph: &Graph) {
+    for node in 0..partition.len() {
+        if partition[node] == 2 {
+            let mut nodes_belonging_to_partition0 = 0;
+            let mut nodes_belonging_to_partition1 = 0;
+
+            for (neighbor_node, _) in graph.neighbors(node) {
+                if partition[neighbor_node] == 1 {
+                    nodes_belonging_to_partition1 += 1;
+                } else if partition[neighbor_node] == 0 {
+                    nodes_belonging_to_partition0 += 1;
+                }
+            }
+
+            if nodes_belonging_to_partition1 >= 0 && nodes_belonging_to_partition0 == 0 {
+                partition[node] = 1;
+            } else if nodes_belonging_to_partition0 >=0 && nodes_belonging_to_partition0 == 0 {
+                partition[node] = 0;
+            }
+        }
+    }
+
+}
+
 // Refines the partition from a coarse graph back to the original finer graph.
 fn partition_uncoarse(partition: &[usize], fine_vertex_to_coarse_vertex_mapping: &Vec<usize>) -> Vec<usize>{
     // Calculate the number of vertices in the uncoarsed graph (1 up level)
-
 
     // Create a partition array for the uncoarsed graph (1 level up)
     // If vertex 1 and 2 of the uncoarsed graph were merged into vertex 0 in the coarsed graph
@@ -101,5 +130,25 @@ mod tests {
         let uncoarsed_graph_partition = partition_uncoarse(&coarse_graph_partition, &fine_vertex_to_coarse_vertex_mapping);
 
         assert_eq!(uncoarsed_graph_partition, vec![1, 0, 0, 1]);
+    }
+
+    #[test]
+    fn test_refine() {
+        let mut adjacency = Graph::new();
+        adjacency.insert(0, 1, 2);
+        adjacency.insert(1, 2, 1);
+        adjacency.insert(2, 3, 4);
+        adjacency.insert(3, 4, 2);
+
+        adjacency.insert(1, 0, 2);
+        adjacency.insert(2, 1, 1);
+        adjacency.insert(3, 2, 4);
+        adjacency.insert(4, 3, 2);
+
+        let mut partition = vec![0, 2, 2, 2, 1];
+
+        refine(&mut partition, &adjacency);
+        assert_eq!(partition, vec![0, 0, 2, 1, 1]);
+
     }
 }
