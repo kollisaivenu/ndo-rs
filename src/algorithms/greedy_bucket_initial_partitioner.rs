@@ -22,12 +22,14 @@ pub(crate) fn initial_bucket_partitioner(graph: &Graph, vertex_weights: &[i64]) 
             partition[node] = 1;
             partition_weight[1] += vertex_weights[node];
         }
+    }
 
-        // Also ensure that any neighbouring vertex which belongs to the other partition needs
-        // to now be a part of the separator vertex (denoted by partition 2)
-        for (neighbor,_) in graph.neighbors(node) {
-            if partition[neighbor] <= 1 && partition[neighbor] == 1 - partition[node] {
-                partition[neighbor] = 2;
+    // Also ensure that any neighbouring vertex which belongs to the other partition needs
+    // to now be a part of the separator vertex (denoted by partition 2)
+    for vertex in 0..graph.len() {
+        for (neighbor,_) in graph.neighbors(vertex) {
+            if partition[vertex] == 1 && partition[neighbor] == 0 {
+                partition[vertex] = 2;
             }
         }
     }
@@ -57,6 +59,6 @@ mod test {
         let vertex_weights = vec![1, 2, 3, 4, 5, 6];
 
         let partition = initial_bucket_partitioner(&adjacency, &vertex_weights);
-        assert_eq!(partition, vec![2, 2, 0, 2, 0, 1]);
+        assert_eq!(partition, vec![0, 2, 0, 2, 0, 1]);
     }
 }
