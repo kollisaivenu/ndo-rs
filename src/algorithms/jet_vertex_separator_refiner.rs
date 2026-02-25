@@ -1,4 +1,4 @@
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashSet};
 use crate::graph::Graph;
 use crate::imbalance::{calculate_imbalance, compute_parts_load};
 
@@ -37,19 +37,19 @@ pub(crate) fn jet_vertex_separator_refiner(
 
     while current_iteration < iterations {
         let mut moves = Vec::new();
-        if imbalance_of_current_iter_partition < balance_factor {
+
+        if imbalance_of_current_iter_partition <= balance_factor {
             // the jetlp subroutine is used to generate a better partition
             moves = jetlp(&adjacency,
-                             &partition_iter,
-                             &locked_vertices,
-                             filter_ratio,
-                             vertex_weights);
+                          &partition_iter,
+                          &locked_vertices,
+                          filter_ratio,
+                          vertex_weights);
 
             // Based on the suggested moves of the jetlp subroutine, the vertices to be moved are locked
             // to ensure that they don't become eligible to move in the next iteration.
             // This prevents oscillation of vertices
             lock_vertices(&moves, &mut locked_vertices);
-
         } else {
             // the jetrs is run balance out the two partitions.
             moves = jetrw(&adjacency,
@@ -64,8 +64,10 @@ pub(crate) fn jet_vertex_separator_refiner(
         imbalance_of_current_iter_partition = calculate_imbalance(&partition_weights);
 
         let current_vertex_separator_weight = get_weight_of_vertex_separator(&partition_weights);
+
         // Check if the current iteration partition is balance
-        if imbalance_of_current_iter_partition < balance_factor {
+        if imbalance_of_current_iter_partition <= balance_factor {
+
             // Check if the current iteration partition is better than the current best partition
             if current_vertex_separator_weight < best_vertex_separator_weight  {
                 // Current iteration partition is chosen as the best partition
@@ -171,7 +173,7 @@ fn calculate_approximate_gain_and_get_positive_gain_moves(graph: &Graph, first_f
                 gain_for_vertex -= vertex_weights[neighbor_vertex];
             }
         }
-        if gain_for_vertex > 0 {
+        if gain_for_vertex >= 0 {
             moves.push(Move {vertex: vertex, partition_id: dest_partition[vertex]});
         }
     }
@@ -200,7 +202,8 @@ fn gain_conn_ratio_filter(locked_vertices: &[bool], partitions: &[usize], gain: 
             &&
             !gain[vertex].is_none()
             &&
-            (gain[vertex].unwrap() > 0 || -gain[vertex].unwrap() < (filter_ratio * (vertex_weights[vertex] as f64)).floor() as i64){
+            // We allow vertices of gain = 0 to fix test "test_advdiff_matrix_16"
+            (gain[vertex].unwrap() >= 0 || -gain[vertex].unwrap() < (filter_ratio * (vertex_weights[vertex] as f64)).floor() as i64){
             list_of_moveable_vertices.push(vertex);
         }
     }
@@ -238,6 +241,38 @@ fn jetrw(graph: &Graph, partition: &[usize], vertex_weights: &[i64], balance_fac
 
     // Determine which vertices to move from the vertex separator to the light partition so that the heavy partition becomes lighter.
     determine_moves_to_rebalance(partition_weights, heavy_partition, max_slots, &bucket, &loss, vertex_weights, balance_factor)
+}
+
+fn determine_moves_to_rebalance(partition_weights: &[i64], heavy_partition: usize, max_slots: usize, bucket: &Vec<Vec<usize>>, loss: &[Option<i64>], vertex_weights: &[i64], balance_factor: f64) -> Vec<Move> {
+    let mut moves = Vec::new();
+    let mut is_still_heavy_partition = true;
+    // Determine how much weight from the heavy partition should be removed.
+    let mut heavy_partition_weight = partition_weights[0].max(partition_weights[1]) as f64;
+    let mut light_partition_weight = partition_weights[0].min(partition_weights[1]) as f64;
+
+    for slot in 0..max_slots {
+
+        for &vertex in &bucket[get_index_for_bucket(0, slot, max_slots)] {
+            // Keep removing the vertices until the excess weight (m_max
+            if heavy_partition_weight/ (heavy_partition_weight + light_partition_weight) >= balance_factor {
+                // loss[vertex] + vertex_weights[vertex] is the amount of weight that is lost when
+                // vertex moves to the light partition
+                light_partition_weight += vertex_weights[vertex] as f64;
+                heavy_partition_weight = heavy_partition_weight - ((loss[vertex].unwrap() + vertex_weights[vertex]) as f64);
+                moves.push(Move {vertex, partition_id: 1 - heavy_partition});
+            } else {
+                // This is for early stopping incase the excess weight is removed.
+                is_still_heavy_partition = false;
+                break;
+            }
+        }
+
+        if !is_still_heavy_partition {
+            break;
+        }
+    }
+
+    moves
 }
 
 fn calculate_loss(graph: &Graph, partition: &[usize], heavy_partition: usize, vertex_weights: &[i64]) -> Vec<Option<i64>> {
@@ -289,39 +324,6 @@ fn get_heavy_partition(partition_weights: &[i64]) -> usize {
 
     heavy_partition
 
-}
-
-fn determine_moves_to_rebalance(partition_weights: &[i64], heavy_partition: usize, max_slots: usize, bucket: &Vec<Vec<usize>>, loss: &[Option<i64>], vertex_weights: &[i64], balance_factor: f64) -> Vec<Move> {
-    // This function determines which vertices from the vertex separator should move to reduce the
-    // weight of the heavy partition
-    let mut moves = Vec::new();
-    let mut is_still_heavy_partition = true;
-    let mut current_weight = 0f64;
-    // Determine how much weight from the heavy partition should be removed.
-    let excess_weight = partition_weights[heavy_partition] as f64 - (partition_weights[0] as f64 + partition_weights[1] as f64)*balance_factor;
-
-    for slot in 0..max_slots {
-
-        for &vertex in &bucket[get_index_for_bucket(0, slot, max_slots)] {
-            // Keep removing the vertices until the excess weight (m_max
-            if current_weight < excess_weight {
-                // loss[vertex] + vertex_weights[vertex] is the amount of weight that is lost when
-                // vertex moves to the light partition
-                current_weight = current_weight + ((loss[vertex].unwrap() + vertex_weights[vertex]) as f64);
-                moves.push(Move {vertex, partition_id: 1 - heavy_partition});
-            } else {
-                // This is for early stopping incase the excess weight is removed.
-                is_still_heavy_partition = false;
-                break;
-            }
-        }
-
-        if !is_still_heavy_partition {
-            break;
-        }
-    }
-
-    moves
 }
 
 fn calculate_slot(loss: i64, max_slot_size: usize) -> usize {
@@ -389,8 +391,10 @@ fn apply_moves(moves: &Vec<Move>, partition: &mut [usize], graph: &Graph, partit
 
 #[cfg(test)]
 mod tests {
-    use crate::algorithms::jet_vertex_separator_refiner::{apply_moves, calculate_approximate_gain_and_get_positive_gain_moves, calculate_gain, calculate_loss, calculate_slot, determine_moves_to_rebalance, gain_conn_ratio_filter, get_heavy_partition, init_bucket, is_more_important, lock_vertices, place_vertices_in_bucket, Move};
+    use std::path::Path;
+    use crate::algorithms::jet_vertex_separator_refiner::{apply_moves, calculate_approximate_gain_and_get_positive_gain_moves, calculate_gain, calculate_loss, calculate_slot, determine_moves_to_rebalance, gain_conn_ratio_filter, get_heavy_partition, init_bucket, is_more_important, jet_vertex_separator_refiner, lock_vertices, place_vertices_in_bucket, Move};
     use crate::graph::Graph;
+    use crate::io::read_matrix_market_as_graph;
 
     #[test]
     fn test_calculate_gain() {
@@ -592,5 +596,45 @@ mod tests {
         lock_vertices(&moves, &mut locked_vertices);
         assert_eq!(locked_vertices, vec![false, true, false, false, true]);
     }
+
+    #[test]
+    fn test_advdiff_matrix_9() {
+        let file_name = "advdiff_matrix_9.mtx";
+        let graph = read_matrix_market_as_graph(Path::new(&("./testdata/".to_owned() + file_name))).unwrap();
+        // The above graph looks like this
+
+        // 2 - 5 - 8
+        // |   |   |
+        // 1 - 4 - 7
+        // |   |   |
+        // 0 - 3 - 6
+
+        let mut partition = [0, 2, 1, 0, 2, 1, 2, 2, 1];
+        let vertex_weights = vec![1; 9];
+        jet_vertex_separator_refiner(&mut partition, &vertex_weights, graph.clone(), 1, 0.6 ,0.75, 0.99);
+        assert_eq!(partition.iter().filter(|v| **v == 2).count(), 3);
+    }
+
+    #[test]
+    fn test_advdiff_matrix_16() {
+        let file_name = "advdiff_matrix_16.mtx";
+        let graph = read_matrix_market_as_graph(Path::new(&("./testdata/".to_owned() + file_name))).unwrap();
+        let mut partition = vec![0, 0, 2, 0, 0, 2, 1, 2, 0, 2, 1, 1, 2, 1, 1, 1];
+        let vertex_weights = vec![1; 16];
+        jet_vertex_separator_refiner(&mut partition, &vertex_weights, graph.clone(), 1, 0.6 ,0.75, 0.99);
+        assert_eq!(partition.iter().filter(|v| **v == 2).count(), 4);
+    }
+
+    #[test]
+    fn test_advdiff_matrix_25() {
+        // This is a failing test
+        let file_name = "advdiff_matrix_25.mtx";
+        let graph = read_matrix_market_as_graph(Path::new(&("./testdata/".to_owned() + file_name))).unwrap();
+        let mut partition = vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 0, 1, 1, 1, 2, 0, 1, 1, 1, 1, 2];
+        let vertex_weights = vec![1; 25];
+        jet_vertex_separator_refiner(&mut partition, &vertex_weights, graph.clone(), 1, 0.6,0.75, 0.99);
+        assert_eq!(partition.iter().filter(|v| **v == 2).count(), 5);
+    }
 }
+
 
